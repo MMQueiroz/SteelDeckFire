@@ -53,7 +53,7 @@ public sealed class ReportBuilder
             new[] { "Tela", "Tipo", H(inp.MeshName) },
             new[] { "Tela", "A_{s} paralela a L2 / paralela a L1", $"{F(inp.AsAlongL2, 0)} / {F(inp.AsAlongL1, 0)} mm²/m" },
             new[] { "Tela", "f_{y} / d (eixo à face superior)", $"{F(inp.MeshFy, 0)} MPa / {F(inp.MeshDepth, 0)} mm" },
-            new[] { "Vigas", "Perfil (d × bf × tw × tf)", $"{F(inp.BeamH, 0)} × {F(inp.BeamB, 0)} × {F(inp.BeamTw, 1)} × {F(inp.BeamTf, 1)} mm" },
+            new[] { "Vigas", "Perfil (d × b_{f} × t_{w} × t_{f}, r)", $"{F(inp.BeamH, 0)} × {F(inp.BeamB, 0)} × {F(inp.BeamTw, 1)} × {F(inp.BeamTf, 1)} mm, r = {F(inp.BeamR, 0)} mm" },
             new[] { "Vigas", "A / Z_{x} / f_{y} / grau de interação", $"{F(inp.BeamArea, 1)} cm² / {F(inp.BeamZx, 1)} cm³ / {F(inp.BeamFy, 0)} MPa / {F(inp.ShearConnection, 2)}" },
             new[] { "Incêndio", "TRRF – incêndio-padrão ISO 834", $"{F(t, 0)} min" },
         });
@@ -177,6 +177,12 @@ public sealed class ReportBuilder
         if (bm.Count == 0) Note("Não há vigas internas: q_{fi,Rd,vigas} = 0.");
         else
         {
+            Eq("A = 2b_{f}·t_{f} + (d − 2t_{f})·t_{w} + (4 − π)·r²",
+               $"2 × {F(inp.BeamB, 0)} × {F(inp.BeamTf, 1)} + ({F(inp.BeamH, 0)} − 2 × {F(inp.BeamTf, 1)}) × {F(inp.BeamTw, 1)} + (4 − π) × {F(inp.BeamR, 0)}²",
+               F(inp.BeamArea, 2), "cm²", "área do perfil calculada pela geometria, com as concordâncias alma–mesa");
+            Eq("Z_{x} = b_{f}·t_{f}·(d − t_{f}) + t_{w}·(d − 2t_{f})²/4 + 4A_{r}·(d/2 − t_{f} − ȳ_{r})",
+               $"{F(inp.BeamB, 0)} × {F(inp.BeamTf, 1)} × ({F(inp.BeamH, 0)} − {F(inp.BeamTf, 1)}) + {F(inp.BeamTw, 1)} × ({F(inp.BeamH, 0)} − 2 × {F(inp.BeamTf, 1)})²/4 + {F(SectionProperties.FilletsZx(inp.BeamH, inp.BeamTf, inp.BeamR) / 1000, 1)} × 10³",
+               F(inp.BeamZx, 1), "cm³", "A_{r} = (1 − π/4)·r², ȳ_{r} = r·(10 − 3π)/(12 − 3π): área e centroide de cada concordância");
             Eq("k_{sh} = 0,9·(d + 0,5b_{f})/(d + 1,5b_{f} − t_{w})",
                $"0,9 × ({F(inp.BeamH, 0)} + 0,5 × {F(inp.BeamB, 0)})/({F(inp.BeamH, 0)} + 1,5 × {F(inp.BeamB, 0)} − {F(inp.BeamTw, 1)})", F(bm.Ksh, 3), "");
             Eq("k_{sh}·(A/V)_{mesa} = k_{sh}·2(b_{f} + t_{f})/(b_{f}·t_{f})",

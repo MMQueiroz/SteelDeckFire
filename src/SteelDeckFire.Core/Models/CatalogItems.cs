@@ -28,8 +28,18 @@ public sealed record MeshType(
     bool ColdWorked,       // fio trefilado (CA-60) → curva de redução "cold worked"
     string Note);
 
-/// <summary>Perfil I laminado (dimensões em mm, área em cm², Zx em cm³).</summary>
+/// <summary>
+/// Perfil I laminado: d, bf, tw, tf e r (raio de concordância) em mm; massa nominal em kg/m.
+/// A e Zx são calculados pela geometria.
+/// </summary>
 public sealed record SteelSection(
     string Name,
-    double H, double B, double Tw, double Tf,
-    double AreaCm2, double ZxCm3);
+    double H, double B, double Tw, double Tf, double R,
+    double MassKgM)
+{
+    public double AreaCm2 => Calc.SectionProperties.Area(H, B, Tw, Tf, R) / 100.0;
+    public double ZxCm3 => Calc.SectionProperties.Zx(H, B, Tw, Tf, R) / 1000.0;
+
+    /// <summary>Massa pela área calculada (aço 7850 kg/m³).</summary>
+    public double ComputedMassKgM => AreaCm2 * 0.785;
+}

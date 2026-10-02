@@ -10,9 +10,10 @@ src/
   SteelDeckFire.Core/          biblioteca net8.0, sem dependências externas
     Models/ProjectInput.cs     todos os dados de entrada (com atributos para o PropertyGrid)
     Models/CatalogItems.cs     fôrma, tela, perfil
-    Data/Catalogs.cs           Metform MF-50/MF-75, telas Gerdau série Q, perfis W e IPE 400
+    Data/Catalogs.cs           Metform MF-50/MF-75, telas Gerdau série Q, perfis Gerdau W e HP e IPE 400
     Fire/FireTables.cs         ISO 834, temperaturas na laje, k_y, k_u, k_s, c_a, h_eff mínimo
     Fire/SteelHeating.cs       aquecimento de perfil sem proteção (método incremental)
+    Calc/SectionProperties.cs  área e módulo plástico do perfil I pela geometria (com concordâncias)
     Calc/FireDesign.cs         método de Bailey, vigas internas, vigas de perímetro, verificações
     Calc/Results.cs            todos os valores intermediários
     Report/ReportDocument.cs   memorial como blocos independentes de formato (títulos, equações, tabelas, figuras)
@@ -73,7 +74,7 @@ A única diferença é θ1: o guia lê 77 °C e a interpolação da própria tab
 ## Pontos a conferir antes do uso em projeto
 
 - **Geometria das nervuras Metform (l1, l2, l3)**: os valores são aproximados. Altura e largura útil são as nominais; confira as demais com o catálogo ou manual técnico vigente, ou use "Personalizada".
-- **Perfis W**: valores de referência; confira com a tabela do fabricante.
+- **Perfis W e HP**: o catálogo traz as bitolas Gerdau (d, bf, tw, tf, r); A e Zx são calculados pela geometria, incluindo as concordâncias alma–mesa. Confira as dimensões com a tabela vigente do fabricante. Ao editar qualquer dimensão, o perfil passa a "Personalizada".
 - **Ductilidade da tela**: o método foi calibrado com telas classe B ou C (EN 10080). Telas CA-60 trefiladas usuais têm alongamento baixo, e o programa emite alerta.
 - **Combinação de ações**: γg e ψ são entradas. O padrão é NBR 14323 (0,7·ψ2); confira para o caso.
 - **Vigas internas com interação parcial**: o momento é interpolado linearmente entre o perfil isolado e a interação completa, simplificação a favor da segurança.

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json.Serialization;
+using SteelDeckFire.Core.Calc;
 using SteelDeckFire.Core.Data;
 
 namespace SteelDeckFire.Core.Models;
@@ -119,8 +120,10 @@ public class ProjectInput
 
     // ---------------- Vigas internas ----------------
     private string _sectionName = "W 360 x 32,9";
+    private double _beamH = 349, _beamB = 127, _beamTw = 5.8, _beamTf = 8.5, _beamR = 12;
 
     [Category("4. Vigas internas sem proteção"), DisplayName("Perfil"), TypeConverter(typeof(SectionNameConverter)),
+     Description("Perfis laminados Gerdau (W e HP). Ao editar as dimensões, o perfil passa a \"Personalizada\"."),
      RefreshProperties(RefreshProperties.All)]
     public string SectionName
     {
@@ -130,16 +133,43 @@ public class ProjectInput
             _sectionName = value;
             var s = Catalogs.FindSection(value);
             if (s is null) return;
-            BeamH = s.H; BeamB = s.B; BeamTw = s.Tw; BeamTf = s.Tf; BeamArea = s.AreaCm2; BeamZx = s.ZxCm3;
+            _beamH = s.H; _beamB = s.B; _beamTw = s.Tw; _beamTf = s.Tf; _beamR = s.R;
         }
     }
 
-    [Category("4. Vigas internas sem proteção"), DisplayName("d – altura (mm)")] public double BeamH { get; set; } = 349;
-    [Category("4. Vigas internas sem proteção"), DisplayName("bf – largura da mesa (mm)")] public double BeamB { get; set; } = 127;
-    [Category("4. Vigas internas sem proteção"), DisplayName("tw – alma (mm)")] public double BeamTw { get; set; } = 5.8;
-    [Category("4. Vigas internas sem proteção"), DisplayName("tf – mesa (mm)")] public double BeamTf { get; set; } = 8.5;
-    [Category("4. Vigas internas sem proteção"), DisplayName("A – área (cm²)")] public double BeamArea { get; set; } = 42.1;
-    [Category("4. Vigas internas sem proteção"), DisplayName("Zx – módulo plástico (cm³)")] public double BeamZx { get; set; } = 547.6;
+    [Category("4. Vigas internas sem proteção"), DisplayName("d – altura (mm)"), RefreshProperties(RefreshProperties.All)]
+    public double BeamH { get => _beamH; set { _beamH = value; GeometryEdited(); } }
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("bf – largura da mesa (mm)"), RefreshProperties(RefreshProperties.All)]
+    public double BeamB { get => _beamB; set { _beamB = value; GeometryEdited(); } }
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("tw – alma (mm)"), RefreshProperties(RefreshProperties.All)]
+    public double BeamTw { get => _beamTw; set { _beamTw = value; GeometryEdited(); } }
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("tf – mesa (mm)"), RefreshProperties(RefreshProperties.All)]
+    public double BeamTf { get => _beamTf; set { _beamTf = value; GeometryEdited(); } }
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("r – raio de concordância (mm)"), RefreshProperties(RefreshProperties.All),
+     Description("Raio da concordância entre alma e mesa; r = (d − 2tf − d′)/2 na tabela Gerdau.")]
+    public double BeamR { get => _beamR; set { _beamR = value; GeometryEdited(); } }
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("A – área (cm²)"),
+     Description("Calculada: A = 2·bf·tf + (d − 2tf)·tw + (4 − π)·r².")]
+    public double BeamArea => SectionProperties.Area(_beamH, _beamB, _beamTw, _beamTf, _beamR) / 100.0;
+
+    [Category("4. Vigas internas sem proteção"), DisplayName("Zx – módulo plástico (cm³)"),
+     Description("Calculado: Zx = bf·tf·(d − tf) + tw·(d − 2tf)²/4 + parcela das concordâncias.")]
+    public double BeamZx => SectionProperties.Zx(_beamH, _beamB, _beamTw, _beamTf, _beamR) / 1000.0;
+
+    /// <summary>Se a geometria deixa de ser a do perfil do catálogo, o nome passa a "Personalizada".</summary>
+    private void GeometryEdited()
+    {
+        var s = Catalogs.FindSection(_sectionName);
+        if (s is null) return;
+        if (s.H != _beamH || s.B != _beamB || s.Tw != _beamTw || s.Tf != _beamTf || s.R != _beamR)
+            _sectionName = Catalogs.CustomName;
+    }
+
     [Category("4. Vigas internas sem proteção"), DisplayName("fy do perfil (MPa)")] public double BeamFy { get; set; } = 345;
 
     [Category("4. Vigas internas sem proteção"), DisplayName("Grau de interação a 20 °C"),

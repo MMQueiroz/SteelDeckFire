@@ -53,6 +53,22 @@ Check("b (compressão)", rA.Membrane.B, 1.232);
 Check("e", rA.Membrane.E, 5.475);
 Check("q_laje (kN/m²)", rA.Membrane.QSlab, 5.62);
 
+// Propriedades calculadas: IPE 400 (r = 21 mm) contra os valores tabelados
+var ipe = SteelDeckFire.Core.Data.Catalogs.FindSection("IPE 400")!;
+Check("IPE 400 – A (cm²)", ipe.AreaCm2, 84.46);
+Check("IPE 400 – Zx (cm³)", ipe.ZxCm3, 1307.0);
+
+// Catálogo: massa pela área calculada contra a massa nominal da bitola (pega erro de digitação na geometria)
+Console.WriteLine();
+Console.WriteLine("Catálogo de perfis – massa calculada × nominal:");
+foreach (var sec in SteelDeckFire.Core.Data.Catalogs.Sections)
+{
+    double dev = sec.ComputedMassKgM / sec.MassKgM - 1;
+    string flag = Math.Abs(dev) > 0.05 ? "  << DIVERGE" : Math.Abs(dev) > 0.03 ? "  < conferir" : "";
+    Console.WriteLine($"  {sec.Name,-22} A = {sec.AreaCm2,7:F2} cm²  Zx = {sec.ZxCm3,8:F1} cm³  m = {sec.ComputedMassKgM,6:F1} / {sec.MassKgM,6:F1} kg/m ({dev * 100,5:+0.0;-0.0} %){flag}");
+    if (Math.Abs(dev) > 0.05) fails++;
+}
+
 Console.WriteLine();
 Console.WriteLine(fails == 0 ? "VALIDAÇÃO CONCLUÍDA SEM DIVERGÊNCIAS" : $"{fails} DIVERGÊNCIA(S)");
 
