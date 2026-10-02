@@ -8,7 +8,7 @@ using SteelDeckFire.Core.Models;
 namespace SteelDeckFire.App.Views;
 
 /// <summary>Faixa superior com o veredito e os números que decidem o painel.</summary>
-[ToolboxItem(true)]
+[ToolboxItem(true), DesignerCategory("Code")]
 public class ResultStrip : Control
 {
     private ProjectInput? _inp;

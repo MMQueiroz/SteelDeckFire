@@ -13,7 +13,7 @@ namespace SteelDeckFire.App.Views;
 /// zona tracionada central, anel comprimido e fissura central através do vão menor.
 /// Eixo horizontal = L2; eixo vertical = L1 (vigas internas verticais).
 /// </summary>
-[ToolboxItem(true)]
+[ToolboxItem(true), DesignerCategory("Code")]
 public class PlanView : Control
 {
     private ProjectInput? _inp;

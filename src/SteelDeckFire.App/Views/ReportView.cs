@@ -5,7 +5,7 @@ using System.Drawing.Drawing2D;
 namespace SteelDeckFire.App.Views;
 
 /// <summary>Exibe o memorial paginado, como na impressão. Ctrl + roda do mouse altera o zoom.</summary>
-[ToolboxItem(true)]
+[ToolboxItem(true), DesignerCategory("Code")]
 public class ReportView : ScrollableControl
 {
     private const float Gap = 24f; // em pixels de tela
