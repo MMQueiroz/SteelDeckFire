@@ -12,6 +12,7 @@ public static class Catalogs
 {
     public const string CustomName = "Personalizada";
 
+
     public static readonly IReadOnlyList<DeckProfile> Decks = new List<DeckProfile>
     {
         new("Metform MF-50", H2: 50, L1: 172, L2: 152, L3: 133,
