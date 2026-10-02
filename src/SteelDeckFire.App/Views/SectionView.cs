@@ -27,16 +27,8 @@ internal sealed class SectionView : Control
         Draw(e.Graphics, ClientRectangle);
     }
 
-    public Bitmap Render(int width, int height)
-    {
-        var bmp = new Bitmap(width, height);
-        using var g = Graphics.FromImage(bmp);
-        g.Clear(Theme.Paper);
-        Draw(g, new Rectangle(0, 0, width, height));
-        return bmp;
-    }
-
-    private void Draw(Graphics g, Rectangle area)
+    /// <summary>Desenha a vista em <paramref name="area"/>; usado também pelo memorial.</summary>
+    internal void Draw(Graphics g, Rectangle area)
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;

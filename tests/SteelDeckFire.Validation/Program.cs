@@ -58,9 +58,8 @@ Console.WriteLine(fails == 0 ? "VALIDAÇÃO CONCLUÍDA SEM DIVERGÊNCIAS" : $"{f
 
 var sweep = FireDesign.TimeSweep(inp, 30);
 foreach (var p in sweep) Console.WriteLine($"t={p.Time,4} min  q_laje={p.QSlab,6:F2}  q_vigas={p.QBeams,6:F2}  total={p.QTotal,6:F2}  θviga={p.ThetaBeam,6:F0}");
-var html = SteelDeckFire.Core.Report.ReportBuilder.Build(inp, r, FireDesign.TimeSweep(inp), null);
-File.WriteAllText("memorial_validacao.html", html);
-Console.WriteLine($"Memorial gerado: {html.Length} caracteres");
+var memorial = SteelDeckFire.Core.Report.ReportBuilder.Build(inp, r, FireDesign.TimeSweep(inp));
+Console.WriteLine($"Memorial gerado: {memorial.Blocks.Count} blocos");
 var d = FireDesign.Run(new ProjectInput());
 Console.WriteLine($"Padrão MF-75/Q196: heff={d.Thermal.Heff:F1} θs={d.Thermal.ThetaS:F0} n={d.Membrane.N:F3} b={d.Membrane.B:F3} e={d.Membrane.E:F2} qlaje={d.Membrane.QSlab:F2} qvig={d.Beams.QBeams:F2} θv={d.Beams.Theta:F0} qRd={d.QfiRd:F2} qSd={d.Load.QfiSd:F2}");
 foreach (var c in d.Checks) Console.WriteLine($"  [{c.Status}] {c.Title}: {c.Detail}");

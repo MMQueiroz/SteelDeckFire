@@ -15,13 +15,17 @@ src/
     Fire/SteelHeating.cs       aquecimento de perfil sem proteção (método incremental)
     Calc/FireDesign.cs         método de Bailey, vigas internas, vigas de perímetro, verificações
     Calc/Results.cs            todos os valores intermediários
-    Report/ReportBuilder.cs    memorial HTML passo a passo (fórmula → substituição → resultado)
+    Report/ReportDocument.cs   memorial como blocos independentes de formato (títulos, equações, tabelas, figuras)
+    Report/ReportBuilder.cs    memorial passo a passo (fórmula → substituição → resultado)
   SteelDeckFire.App/           WinForms net8.0-windows
     MainForm.cs                PropertyGrid + abas + exportação
     Views/PlanView.cs          planta com linhas de ruptura e forças de membrana
     Views/SectionView.cs       seção da laje com gradiente térmico e temperaturas
     Views/TimeChartView.cs     resistência × tempo
     Views/ResultStrip.cs       veredito e números principais
+    Views/ReportLayout.cs      paginação A4 e desenho do memorial (GDI+), igual na tela e na impressão
+    Views/ReportView.cs        visualização paginada do memorial
+    Views/RichText.cs          texto com subscrito/itálico e quebra de linha
 tests/
   SteelDeckFire.Validation/    reproduz o exemplo resolvido do FRACOF Design Guide
 ```
@@ -45,7 +49,8 @@ Requer .NET 8 SDK. Não há pacotes NuGet.
    - **Seção da laje**: posição da tela, h_eff e temperaturas θ1, θs, θ2.
    - **Resistência × tempo**: q_fi,Rd de 30 a 180 min contra q_fi,Sd.
    - **Verificações**: capacidade, isolamento, ductilidade, escopo, modo de ruptura.
-   - **Memorial de cálculo**: passo a passo com figuras; exporte em HTML e imprima em PDF pelo navegador.
+   - **Memorial de cálculo**: passo a passo com figuras, paginado em A4 (Ctrl + roda do mouse para zoom, Ctrl + 0 para ajustar à largura).
+     Use "Exportar memorial em PDF…" (via Microsoft Print to PDF), "Visualizar impressão" ou "Imprimir…".
 4. "Carregar exemplo FRACOF" preenche o exemplo do guia (zona B, 9 × 12 m, R60) para conferência.
 
 ## Convenções

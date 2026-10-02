@@ -1,6 +1,5 @@
-using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
+using System.Drawing.Printing;
 using System.Text;
 using System.Text.Json;
 using SteelDeckFire.App.Views;
@@ -16,7 +15,7 @@ internal sealed class MainForm : Form
     private DesignResult? _result;
     private List<TimePoint> _sweep = new();
     private string? _currentFile;
-    private string _lastHtml = "";
+    private ReportLayout? _report;
     private bool _reportDirty = true;
 
     private readonly PropertyGrid _grid = new();
@@ -25,7 +24,7 @@ internal sealed class MainForm : Form
     private readonly SectionView _section = new();
     private readonly TimeChartView _chart = new();
     private readonly ListView _checks = new();
-    private readonly WebBrowser _browser = new();
+    private readonly ReportView _reportView = new();
     private readonly TabControl _tabs = new();
     private readonly TabPage _tabReport = new("Memorial de cálculo");
     private readonly ToolStripStatusLabel _status = new();
@@ -63,8 +62,9 @@ internal sealed class MainForm : Form
         tool.Items.Add(new ToolStripSeparator());
         tool.Items.Add(Btn("Carregar exemplo FRACOF", (_, _) => { _currentFile = null; LoadInput(ProjectInput.FracofExample()); }));
         tool.Items.Add(new ToolStripSeparator());
-        tool.Items.Add(Btn("Exportar memorial…", (_, _) => ExportReport()));
-        tool.Items.Add(Btn("Abrir memorial no navegador", (_, _) => OpenReportInBrowser()));
+        tool.Items.Add(Btn("Exportar memorial em PDF…", (_, _) => ExportPdf()));
+        tool.Items.Add(Btn("Visualizar impressão", (_, _) => PrintPreview()));
+        tool.Items.Add(Btn("Imprimir…", (_, _) => Print()));
 
         var statusStrip = new StatusStrip { SizingGrip = false, BackColor = Color.White };
         _status.Spring = true;
@@ -107,15 +107,13 @@ internal sealed class MainForm : Form
         _checks.Columns.Add("Verificação", 300);
         _checks.Columns.Add("Detalhe", 800);
 
-        _browser.Dock = DockStyle.Fill;
-        _browser.ScriptErrorsSuppressed = true;
-        _browser.AllowWebBrowserDrop = false;
+        _reportView.Dock = DockStyle.Fill;
 
         _tabs.TabPages.Add(Page("Planta e linhas de ruptura", _plan));
         _tabs.TabPages.Add(Page("Seção da laje", _section));
         _tabs.TabPages.Add(Page("Resistência × tempo", _chart));
         _tabs.TabPages.Add(Page("Verificações", _checks));
-        _tabReport.Controls.Add(_browser);
+        _tabReport.Controls.Add(_reportView);
         _tabs.TabPages.Add(_tabReport);
 
         _strip.Dock = DockStyle.Top;
@@ -236,59 +234,147 @@ internal sealed class MainForm : Form
     }
 
     // ================================================================ memorial
-    private string BuildReportHtml()
+    private ReportLayout? BuildReport()
     {
-        if (_result is null) return "";
-        string Png(Bitmap bmp)
+        if (_result is null) return null;
+        var doc = ReportBuilder.Build(_input, _result, _sweep);
+        return new ReportLayout(doc, fig => fig switch
         {
-            using (bmp)
-            using (var ms = new MemoryStream())
-            {
-                bmp.Save(ms, ImageFormat.Png);
-                return Convert.ToBase64String(ms.ToArray());
-            }
-        }
-        var imgs = new ReportImages(
-            Png(_plan.Render(1300, 900)),
-            Png(_section.Render(1300, 520)),
-            Png(_chart.Render(1300, 620)));
-        return ReportBuilder.Build(_input, _result, _sweep, imgs);
+            ReportFigure.Plan => _plan.Draw,
+            ReportFigure.Section => _section.Draw,
+            ReportFigure.TimeChart => _chart.Draw,
+            _ => null,
+        });
     }
 
-    private void UpdateReport()
+    /// <summary>Memorial atualizado com os dados atuais, ou null se não há resultado.</summary>
+    private ReportLayout? CurrentReport()
+    {
+        if (_reportDirty || _report is null)
+        {
+            Cursor = Cursors.WaitCursor;
+            try
+            {
+                var old = _report;
+                _report = BuildReport();
+                _reportView.SetLayout(_report);
+                old?.Dispose();
+                _reportDirty = false;
+            }
+            finally { Cursor = Cursors.Default; }
+        }
+        return _report;
+    }
+
+    private void UpdateReport() => CurrentReport();
+
+    private PrintDocument? CreatePrintDocument()
+    {
+        var layout = CurrentReport();
+        if (layout is null) return null;
+        var doc = new PrintDocument { DocumentName = $"Memorial - {Sanitize(_input.PanelName)}" };
+        var a4 = doc.PrinterSettings.PaperSizes.Cast<PaperSize>().FirstOrDefault(p => p.Kind == PaperKind.A4);
+        if (a4 is not null) doc.DefaultPageSettings.PaperSize = a4;
+        doc.DefaultPageSettings.Landscape = false;
+
+        int page = 0, last = 0;
+        doc.BeginPrint += (_, _) =>
+        {
+            var ps = doc.PrinterSettings;
+            bool some = ps.PrintRange == PrintRange.SomePages;
+            page = some ? Math.Clamp(ps.FromPage, 1, layout.PageCount) - 1 : 0;
+            last = some ? Math.Clamp(ps.ToPage, page + 1, layout.PageCount) - 1 : layout.PageCount - 1;
+        };
+        doc.PrintPage += (_, e) =>
+        {
+            var g = e.Graphics!;
+            g.PageUnit = GraphicsUnit.Display; // 1/100 pol.
+            // Na impressora a origem é a margem física; o layout usa a folha inteira.
+            if (!doc.PrintController.IsPreview)
+                g.TranslateTransform(-e.PageSettings.HardMarginX, -e.PageSettings.HardMarginY);
+            var bounds = e.PageBounds;
+            float s = Math.Min(bounds.Width / ReportLayout.PageWidth, bounds.Height / ReportLayout.PageHeight);
+            g.TranslateTransform((bounds.Width - ReportLayout.PageWidth * s) / 2, 0);
+            g.ScaleTransform(s, s);
+            layout.DrawPage(g, page);
+            page++;
+            e.HasMorePages = page <= last;
+        };
+        return doc;
+    }
+
+    private void PrintPreview()
+    {
+        using var doc = CreatePrintDocument();
+        if (doc is null) return;
+        using var dlg = new PrintPreviewDialog
+        {
+            Document = doc,
+            UseAntiAlias = true,
+            Width = Math.Min(1100, Screen.FromControl(this).WorkingArea.Width),
+            Height = Math.Min(1000, Screen.FromControl(this).WorkingArea.Height),
+            StartPosition = FormStartPosition.CenterParent,
+            Text = "Visualizar impressão do memorial",
+        };
+        dlg.ShowDialog(this);
+    }
+
+    private void Print()
+    {
+        using var doc = CreatePrintDocument();
+        if (doc is null) return;
+        doc.PrinterSettings.MinimumPage = 1;
+        doc.PrinterSettings.MaximumPage = _report!.PageCount;
+        doc.PrinterSettings.FromPage = 1;
+        doc.PrinterSettings.ToPage = _report.PageCount;
+        using var dlg = new PrintDialog { Document = doc, AllowSomePages = true, UseEXDialog = true };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        TryPrint(doc, "Memorial enviado para impressão.");
+    }
+
+    private const string PdfPrinter = "Microsoft Print to PDF";
+
+    private void ExportPdf()
     {
         if (_result is null) return;
+        if (!PrinterSettings.InstalledPrinters.Cast<string>().Contains(PdfPrinter))
+        {
+            MessageBox.Show(this, $"A impressora \"{PdfPrinter}\" não está instalada.\n\nUse \"Imprimir…\" e escolha outra impressora PDF.",
+                "Exportar PDF", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        using var dlg = new SaveFileDialog
+        {
+            Filter = "Documento PDF (*.pdf)|*.pdf",
+            FileName = $"Memorial - {Sanitize(_input.PanelName)}.pdf",
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        using var doc = CreatePrintDocument();
+        if (doc is null) return;
+        doc.PrinterSettings.PrinterName = PdfPrinter;
+        doc.PrinterSettings.PrintToFile = true;
+        doc.PrinterSettings.PrintFileName = dlg.FileName;
+        var a4 = doc.PrinterSettings.PaperSizes.Cast<PaperSize>().FirstOrDefault(p => p.Kind == PaperKind.A4);
+        if (a4 is not null) doc.DefaultPageSettings.PaperSize = a4;
+        doc.PrintController = new StandardPrintController(); // sem janela de progresso
+        TryPrint(doc, $"Memorial exportado: {dlg.FileName}");
+    }
+
+    private void TryPrint(PrintDocument doc, string done)
+    {
         Cursor = Cursors.WaitCursor;
         try
         {
-            _lastHtml = BuildReportHtml();
-            _browser.DocumentText = _lastHtml;
-            _reportDirty = false;
+            doc.Print();
+            _status.ForeColor = Theme.Ink;
+            _status.Text = done;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Não foi possível imprimir o memorial.\n\n{ex.Message}", "Memorial",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally { Cursor = Cursors.Default; }
-    }
-
-    private void ExportReport()
-    {
-        if (_result is null) return;
-        if (_reportDirty || string.IsNullOrEmpty(_lastHtml)) { _lastHtml = BuildReportHtml(); _reportDirty = false; }
-        using var dlg = new SaveFileDialog
-        {
-            Filter = "Página HTML (*.html)|*.html",
-            FileName = $"Memorial - {Sanitize(_input.PanelName)}.html",
-        };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        File.WriteAllText(dlg.FileName, _lastHtml, new UTF8Encoding(true));
-        _status.Text = $"Memorial exportado: {dlg.FileName}. Para PDF, abra no navegador e imprima.";
-    }
-
-    private void OpenReportInBrowser()
-    {
-        if (_result is null) return;
-        if (_reportDirty || string.IsNullOrEmpty(_lastHtml)) { _lastHtml = BuildReportHtml(); _reportDirty = false; }
-        var path = Path.Combine(Path.GetTempPath(), $"SteelDeckFire_{Sanitize(_input.PanelName)}.html");
-        File.WriteAllText(path, _lastHtml, new UTF8Encoding(true));
-        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
     private static string Sanitize(string s)
