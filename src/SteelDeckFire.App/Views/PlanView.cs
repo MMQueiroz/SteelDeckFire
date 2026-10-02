@@ -29,7 +29,7 @@ internal sealed class PlanView : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        Draw(e.Graphics, ClientRectangle);
+        Theme.PaintScaled(this, e.Graphics, Draw);
     }
 
     /// <summary>Desenha a vista em <paramref name="area"/>; usado também pelo memorial.</summary>
@@ -37,9 +37,9 @@ internal sealed class PlanView : Control
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-        using var fSmall = Theme.UiFont(8.5f);
-        using var fNorm = Theme.UiFont(9.5f);
-        using var fBold = Theme.UiFont(9.5f, FontStyle.Bold);
+        using var fSmall = Theme.DrawFont(8.5f);
+        using var fNorm = Theme.DrawFont(9.5f);
+        using var fBold = Theme.DrawFont(9.5f, FontStyle.Bold);
         using var inkBrush = new SolidBrush(Theme.Ink);
         using var mutedBrush = new SolidBrush(Theme.Muted);
 
@@ -51,7 +51,27 @@ internal sealed class PlanView : Control
 
         var inp = _inp; var m = _res.Membrane;
         double W = inp.L2, H = inp.L1;
-        const int mL = 80, mR = 40, mT = 64, mB = 118;
+        // Margens a partir do tamanho real dos textos
+        string nLText = $"n·L = {Theme.F(m.N * m.Lmm / 1000.0)} m";
+        string info = $"a = {Theme.F(m.A, 3)}   n = {Theme.F(m.N, 3)}   k = {Theme.F(m.K_, 3)}   b = {Theme.F(m.B, 3)}   e = {Theme.F(m.E, 2)}   w = {Theme.F(m.W, 0)} mm";
+        float hInfo = g.MeasureString(info, fNorm).Height, hSmall = g.MeasureString(nLText, fSmall).Height;
+        float hBold = g.MeasureString("L2", fBold).Height;
+        var legend = new List<(Color C, float W, DashStyle? Ds, string Text)>
+        {
+            (Theme.Guard, 5f, DashStyle.Solid, "Viga protegida (perímetro)"),
+            (Theme.Heat, 2.5f, DashStyle.Dash, "Viga sem proteção"),
+            (Theme.Heat, 5f, DashStyle.Solid, "Charneira em tração"),
+            (Theme.Guard, 5f, DashStyle.Solid, "Charneira em compressão"),
+            (Theme.TensionFill, 0, null, "Zona de membrana tracionada"),
+            (Theme.CompressionFill, 0, null, "Anel comprimido"),
+            (Theme.Ink, 1.6f, DashStyle.DashDot, m.CompressionGoverns ? "Fissura central · governa esmagamento nos cantos (⊗)" : "Fissura central · governa fratura da tela"),
+        };
+        var legendRows = LegendRows(g, legend.Select(l => l.Text), fSmall, area.Width - 40);
+        float rowH = Math.Max(20, hSmall + 6);
+        int mL = (int)(hBold + 50), mR = 40;
+        int mT = (int)(12 + hInfo + 10 + hSmall + 2 + 16 + 6);
+        int mB = (int)(26 + 4 + hBold + 14 + legendRows.Count * rowH + 8);
+        if (!m.LongIsL2) mR = (int)(16 + 4 + g.MeasureString(nLText, fSmall).Width + 10);
         float avW = area.Width - mL - mR, avH = area.Height - mT - mB;
         if (avW < 60 || avH < 60) return;
         float s = (float)Math.Min(avW / W, avH / H);
@@ -169,38 +189,67 @@ internal sealed class PlanView : Control
         var st = g.Save();
         g.TranslateTransform(xDim - 6, (panel.Top + panel.Bottom) / 2);
         g.RotateTransform(-90);
-        DrawCentered(g, $"L1 = {Theme.F(H)} m", fBold, inkBrush, 0, -18);
+        DrawCentered(g, $"L1 = {Theme.F(H)} m", fBold, inkBrush, 0, -hBold - 2);
         g.Restore(st);
         // n·L
         if (m.LongIsL2)
         {
             float y = panel.Top - 16;
             g.DrawLine(dimPen, panel.Left, y, P(nL, 0).X, y);
-            DrawCentered(g, $"n·L = {Theme.F(nL)} m", fSmall, mutedBrush, (panel.Left + P(nL, 0).X) / 2, y - 16);
+            DrawCentered(g, nLText, fSmall, mutedBrush, (panel.Left + P(nL, 0).X) / 2, y - hSmall - 2);
         }
         else
         {
             float x = panel.Right + 16;
             g.DrawLine(dimPen, x, panel.Top, x, P(0, nL).Y);
-            g.DrawString($"n·L = {Theme.F(nL)} m", fSmall, mutedBrush, x + 4, (panel.Top + P(0, nL).Y) / 2 - 7);
+            g.DrawString(nLText, fSmall, mutedBrush, x + 4, (panel.Top + P(0, nL).Y) / 2 - hSmall / 2);
         }
 
-        // Caixa de parâmetros
-        string info = $"a = {Theme.F(m.A, 3)}   n = {Theme.F(m.N, 3)}   k = {Theme.F(m.K_, 3)}   b = {Theme.F(m.B, 3)}   e = {Theme.F(m.E, 2)}   w = {Theme.F(m.W, 0)} mm";
+        // Parâmetros
         g.DrawString(info, fNorm, inkBrush, area.X + mL, area.Y + 12);
 
-        // Legenda
-        float lx = area.X + 20, ly = area.Bottom - 56;
-        LegendLine(g, ref lx, ly, Theme.Guard, 5f, DashStyle.Solid, "Viga protegida (perímetro)", fSmall, inkBrush);
-        LegendLine(g, ref lx, ly, Theme.Heat, 2.5f, DashStyle.Dash, "Viga sem proteção", fSmall, inkBrush);
-        LegendLine(g, ref lx, ly, Theme.Heat, 5f, DashStyle.Solid, "Charneira em tração", fSmall, inkBrush);
-        LegendLine(g, ref lx, ly, Theme.Guard, 5f, DashStyle.Solid, "Charneira em compressão", fSmall, inkBrush);
-        lx = area.X + 20; ly += 24;
-        LegendBox(g, ref lx, ly, Theme.TensionFill, "Zona de membrana tracionada", fSmall, inkBrush);
-        LegendBox(g, ref lx, ly, Theme.CompressionFill, "Anel comprimido", fSmall, inkBrush);
-        LegendLine(g, ref lx, ly, Theme.Ink, 1.6f, DashStyle.DashDot,
-            m.CompressionGoverns ? "Fissura central · governa esmagamento nos cantos (⊗)" : "Fissura central · governa fratura da tela",
-            fSmall, inkBrush);
+        // Legenda (quebra em linhas conforme a largura)
+        float ly = area.Bottom - legendRows.Count * rowH - 8;
+        int idx = 0;
+        foreach (int count in legendRows)
+        {
+            float lx = area.X + 20;
+            for (int i = 0; i < count; i++, idx++)
+            {
+                var (c, w, ds, text) = legend[idx];
+                float cy = ly + hSmall / 2;
+                if (ds is DashStyle d)
+                {
+                    using var p = new Pen(c, w) { DashStyle = d };
+                    g.DrawLine(p, lx, cy, lx + 28, cy);
+                }
+                else
+                {
+                    using var br = new SolidBrush(Color.FromArgb(Math.Min(255, c.A * 2), c));
+                    g.FillRectangle(br, lx, cy - 7, 28, 14);
+                }
+                g.DrawString(text, fSmall, inkBrush, lx + 34, ly);
+                lx += LegendItemWidth(g, text, fSmall);
+            }
+            ly += rowH;
+        }
+    }
+
+    private static float LegendItemWidth(Graphics g, string text, Font f) => 34 + g.MeasureString(text, f).Width + 22;
+
+    /// <summary>Quantos itens da legenda cabem em cada linha.</summary>
+    private static List<int> LegendRows(Graphics g, IEnumerable<string> texts, Font f, float width)
+    {
+        var rows = new List<int>();
+        float x = 0; int n = 0;
+        foreach (var t in texts)
+        {
+            float w = LegendItemWidth(g, t, f);
+            if (n > 0 && x + w > width) { rows.Add(n); x = 0; n = 0; }
+            x += w; n++;
+        }
+        if (n > 0) rows.Add(n);
+        return rows;
     }
 
     private static PointF Lerp(PointF a, PointF b, double t) =>
@@ -210,22 +259,6 @@ internal sealed class PlanView : Control
     {
         var sz = g.MeasureString(text, f);
         g.DrawString(text, f, b, cx - sz.Width / 2, y);
-    }
-
-    private static void LegendLine(Graphics g, ref float x, float y, Color c, float w, DashStyle ds, string text, Font f, Brush b)
-    {
-        using var p = new Pen(c, w) { DashStyle = ds };
-        g.DrawLine(p, x, y + 8, x + 28, y + 8);
-        g.DrawString(text, f, b, x + 34, y);
-        x += 34 + g.MeasureString(text, f).Width + 22;
-    }
-
-    private static void LegendBox(Graphics g, ref float x, float y, Color c, string text, Font f, Brush b)
-    {
-        using var br = new SolidBrush(Color.FromArgb(Math.Min(255, c.A * 2), c));
-        g.FillRectangle(br, x, y + 1, 28, 14);
-        g.DrawString(text, f, b, x + 34, y);
-        x += 34 + g.MeasureString(text, f).Width + 22;
     }
 
     private static GraphicsPath RoundedRect(RectangleF r, float rad)

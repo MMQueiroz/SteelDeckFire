@@ -26,7 +26,7 @@ internal sealed class TimeChartView : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        Draw(e.Graphics, ClientRectangle);
+        Theme.PaintScaled(this, e.Graphics, Draw);
     }
 
     /// <summary>Desenha a vista em <paramref name="area"/>; usado também pelo memorial.</summary>
@@ -34,9 +34,9 @@ internal sealed class TimeChartView : Control
     {
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
-        using var fSmall = Theme.UiFont(8.5f);
-        using var fNorm = Theme.UiFont(9.5f);
-        using var fBold = Theme.UiFont(9.5f, FontStyle.Bold);
+        using var fSmall = Theme.DrawFont(8.5f);
+        using var fNorm = Theme.DrawFont(9.5f);
+        using var fBold = Theme.DrawFont(9.5f, FontStyle.Bold);
         using var ink = new SolidBrush(Theme.Ink);
         using var muted = new SolidBrush(Theme.Muted);
         if (_pts.Count < 2) return;
@@ -71,7 +71,9 @@ internal sealed class TimeChartView : Control
             var sz = g.MeasureString(txt, fSmall);
             g.DrawString(txt, fSmall, muted, p.X - sz.Width / 2, plot.Bottom + 6);
         }
-        g.DrawString("tempo de incêndio-padrão (min)", fSmall, muted, plot.Left + plot.Width / 2 - 80, plot.Bottom + 24);
+        const string xLabel = "tempo de incêndio-padrão (min)";
+        float tickH = g.MeasureString("0", fSmall).Height;
+        g.DrawString(xLabel, fSmall, muted, plot.Left + (plot.Width - g.MeasureString(xLabel, fSmall).Width) / 2, plot.Bottom + 8 + tickH);
         g.DrawString("kN/m²", fSmall, muted, area.X + 8, plot.Top - 22);
 
         // TRRF

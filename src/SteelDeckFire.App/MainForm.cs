@@ -36,8 +36,10 @@ internal sealed class MainForm : Form
     {
         Text = "SteelDeck Fire · laje mista em incêndio com ação de membrana";
         Font = Theme.UiFont(9f);
-        Size = new Size(1440, 900);
-        MinimumSize = new Size(1100, 700);
+        var work = Screen.PrimaryScreen?.WorkingArea.Size ?? new Size(1440, 900);
+        var size = LogicalToDeviceUnits(new Size(1440, 900));
+        Size = new Size(Math.Min(size.Width, work.Width), Math.Min(size.Height, work.Height));
+        MinimumSize = new Size(Math.Min(LogicalToDeviceUnits(1000), work.Width), Math.Min(LogicalToDeviceUnits(640), work.Height));
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Color.White;
 
@@ -84,8 +86,8 @@ internal sealed class MainForm : Form
         {
             Text = "Dados do painel",
             Dock = DockStyle.Top,
-            Height = 34,
-            Padding = new Padding(10, 8, 0, 0),
+            Height = LogicalToDeviceUnits(34),
+            Padding = new Padding(LogicalToDeviceUnits(10), LogicalToDeviceUnits(8), 0, 0),
             Font = Theme.UiFont(10.5f, FontStyle.Bold),
             ForeColor = Theme.Ink,
         };
@@ -137,7 +139,7 @@ internal sealed class MainForm : Form
         Controls.Add(tool);
         Controls.Add(statusStrip);
 
-        Shown += (_, _) => split.SplitterDistance = 400;
+        Shown += (_, _) => split.SplitterDistance = LogicalToDeviceUnits(430);
     }
 
     private static ToolStripButton Btn(string text, EventHandler onClick)
