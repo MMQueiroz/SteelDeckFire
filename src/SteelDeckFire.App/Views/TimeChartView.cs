@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -6,7 +7,8 @@ using SteelDeckFire.Core.Calc;
 namespace SteelDeckFire.App.Views;
 
 /// <summary>Resistência do painel (laje, vigas e total) em função do tempo, com a solicitação e o TRRF.</summary>
-internal sealed class TimeChartView : Control
+[ToolboxItem(true)]
+public class TimeChartView : Control
 {
     private IReadOnlyList<TimePoint> _pts = Array.Empty<TimePoint>();
     private double _qSd, _trrf;

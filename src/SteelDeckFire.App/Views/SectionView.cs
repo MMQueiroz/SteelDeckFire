@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -7,7 +8,8 @@ using SteelDeckFire.Core.Models;
 namespace SteelDeckFire.App.Views;
 
 /// <summary>Seção transversal da laje (duas ondas), com gradiente térmico, tela, h_eff e temperaturas de cálculo.</summary>
-internal sealed class SectionView : Control
+[ToolboxItem(true)]
+public class SectionView : Control
 {
     private ProjectInput? _inp;
     private DesignResult? _res;

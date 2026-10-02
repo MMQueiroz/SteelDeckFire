@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -7,7 +8,8 @@ using SteelDeckFire.Core.Models;
 namespace SteelDeckFire.App.Views;
 
 /// <summary>Faixa superior com o veredito e os números que decidem o painel.</summary>
-internal sealed class ResultStrip : Control
+[ToolboxItem(true)]
+public class ResultStrip : Control
 {
     private ProjectInput? _inp;
     private DesignResult? _res;
@@ -17,24 +19,10 @@ internal sealed class ResultStrip : Control
         DoubleBuffered = true;
         ResizeRedraw = true;
         BackColor = Color.White;
-        Height = LogicalHeight;
+        Height = 92;
     }
 
     public void SetData(ProjectInput inp, DesignResult res) { _inp = inp; _res = res; Invalidate(); }
-
-    private const int LogicalHeight = 92;
-
-    protected override void OnHandleCreated(EventArgs e)
-    {
-        base.OnHandleCreated(e);
-        Height = LogicalToDeviceUnits(LogicalHeight);
-    }
-
-    protected override void OnDpiChangedAfterParent(EventArgs e)
-    {
-        base.OnDpiChangedAfterParent(e);
-        Height = LogicalToDeviceUnits(LogicalHeight);
-    }
 
     protected override void OnPaint(PaintEventArgs e)
     {

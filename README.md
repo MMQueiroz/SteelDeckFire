@@ -18,7 +18,8 @@ src/
     Report/ReportDocument.cs   memorial como blocos independentes de formato (títulos, equações, tabelas, figuras)
     Report/ReportBuilder.cs    memorial passo a passo (fórmula → substituição → resultado)
   SteelDeckFire.App/           WinForms net8.0-windows
-    MainForm.cs                PropertyGrid + abas + exportação
+    MainForm.cs                lógica da janela: cálculo, arquivos, memorial, impressão
+    MainForm.Designer.cs       layout da janela (editável no designer do Visual Studio)
     Views/PlanView.cs          planta com linhas de ruptura e forças de membrana
     Views/SectionView.cs       seção da laje com gradiente térmico e temperaturas
     Views/TimeChartView.cs     resistência × tempo
